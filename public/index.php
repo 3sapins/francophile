@@ -1,13 +1,17 @@
 <?php
 $pageTitle = 'Accueil';
-require_once __DIR__ . '/../src/includes/header.php';
 
-// Rediriger si déjà connecté
+// Rediriger si déjà connecté AVANT tout output HTML
+require_once __DIR__ . '/../src/config/config.php';
+Session::start();
+
 if (Session::isLoggedIn()) {
     $redirect = Session::isEleve() ? '/eleve/dashboard.php' : '/enseignant/dashboard.php';
     header('Location: ' . $redirect);
     exit;
 }
+
+require_once __DIR__ . '/../src/includes/header.php';
 ?>
 
 <div class="container">

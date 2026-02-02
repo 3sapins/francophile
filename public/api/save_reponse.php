@@ -19,7 +19,15 @@ if (!$input) {
 }
 
 $sessionId = (int) ($input['session_id'] ?? 0);
-$exerciceType = $input['exercice_type'] ?? '';
+$rawType = $input['exercice_type'] ?? '';
+// Normaliser le type : 'conjugaison_pronom' → 'conjugaison', 'orthographe_choix_multiple' → 'orthographe'
+if (str_starts_with($rawType, 'conjugaison')) {
+    $exerciceType = 'conjugaison';
+} elseif (str_starts_with($rawType, 'orthographe')) {
+    $exerciceType = 'orthographe';
+} else {
+    $exerciceType = $rawType;
+}
 $exerciceId = (int) ($input['exercice_id'] ?? 0);
 $question = $input['question'] ?? '';
 $reponseAttendue = $input['reponse_attendue'] ?? '';

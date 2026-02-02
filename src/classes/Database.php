@@ -9,8 +9,9 @@ class Database {
         if (self::$instance === null) {
             try {
                 $dsn = sprintf(
-                    'mysql:host=%s;dbname=%s;charset=%s',
+                    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
                     DB_HOST,
+                    DB_PORT,
                     DB_NAME,
                     DB_CHARSET
                 );

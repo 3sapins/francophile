@@ -1,7 +1,10 @@
 <?php
 $pageTitle = 'Connexion';
 $bodyClass = 'login-page';
-require_once __DIR__ . '/../src/includes/header.php';
+
+// Charger la config et démarrer la session AVANT tout output HTML
+require_once __DIR__ . '/../src/config/config.php';
+Session::start();
 
 // Rediriger si déjà connecté
 if (Session::isLoggedIn()) {
@@ -14,7 +17,7 @@ $error = '';
 $success = '';
 $activeTab = $_GET['tab'] ?? 'eleve';
 
-// Traitement du formulaire
+// Traitement du formulaire AVANT tout output HTML
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
@@ -87,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// MAINTENANT on peut inclure le header (qui envoie du HTML)
+require_once __DIR__ . '/../src/includes/header.php';
 ?>
 
 <div class="login-container">
@@ -118,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-group">
                 <label class="form-label" for="pseudo">Pseudo</label>
                 <input type="text" id="pseudo" name="pseudo" class="form-input" 
-                       placeholder="Ton pseudo" required>
+                       placeholder="Ton pseudo" required autofocus>
             </div>
             
             <div class="form-group">
@@ -200,5 +206,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
 </div>
+
+<script>
+// Focus automatique sur le premier champ vide du formulaire actif
+document.addEventListener('DOMContentLoaded', function() {
+    const activeForm = document.querySelector('.login-form.active');
+    if (activeForm) {
+        const firstEmpty = activeForm.querySelector('input:not([type=hidden]):not([value])');
+        if (firstEmpty) firstEmpty.focus();
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../src/includes/footer.php'; ?>

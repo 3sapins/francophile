@@ -153,7 +153,8 @@ class Eleve extends User {
      */
     public function getProgressions(): array {
         $stmt = $this->db->prepare('
-            SELECT pe.*, cn.nom_niveau
+            SELECT pe.*, cn.nom_niveau, cn.points_requis as points_niveau_actuel,
+                   (SELECT points_requis FROM config_niveaux cn2 WHERE cn2.domaine = pe.domaine AND cn2.niveau = pe.niveau_actuel + 1) as points_prochain_niveau
             FROM progression_eleves pe
             LEFT JOIN config_niveaux cn ON pe.domaine = cn.domaine AND pe.niveau_actuel = cn.niveau
             WHERE pe.eleve_id = ?
