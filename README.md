@@ -4,7 +4,23 @@ Plateforme d'exercices de français pour le cycle 3 (9e-11e années), alignée s
 
 ![PHP](https://img.shields.io/badge/PHP-8.0+-777BB4?style=flat&logo=php&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat&logo=mysql&logoColor=white)
+![Railway](https://img.shields.io/badge/Railway-Deploy-0B0D0E?style=flat&logo=railway&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
+
+## 🚀 Déploiement rapide sur Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
+
+### Étapes :
+1. **Fork ce repo** sur GitHub
+2. **Connecte-toi à [Railway](https://railway.app)** avec GitHub
+3. **New Project → Deploy from GitHub repo**
+4. **Ajoute une base MySQL** : New → Database → MySQL
+5. **Importe la base** : Dans MySQL, exécute le contenu de `database/init.sql`
+6. **C'est prêt !** Railway génère une URL automatiquement
+
+### Variables d'environnement (automatiques avec Railway MySQL)
+Railway configure automatiquement : `MYSQLHOST`, `MYSQLPORT`, `MYSQLDATABASE`, `MYSQLUSER`, `MYSQLPASSWORD`
 
 ## ✨ Fonctionnalités
 
