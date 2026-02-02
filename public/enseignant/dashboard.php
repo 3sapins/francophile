@@ -90,8 +90,8 @@ $classes = $enseignant->getClasses();
         </div>
         <div class="card">
             <div class="card-body">
-                <h4 class="mb-md">✏️ Exercices personnalisés</h4>
-                <p class="text-muted text-small mb-md">Créez des exercices adaptés à vos élèves.</p>
+                <h4 class="mb-md">✏️ Gestion des exercices</h4>
+                <p class="text-muted text-small mb-md">Sélectionnez les exercices visibles par vos élèves.</p>
                 <a href="/enseignant/exercices.php" class="btn btn-outline btn-block">Gérer les exercices</a>
             </div>
         </div>

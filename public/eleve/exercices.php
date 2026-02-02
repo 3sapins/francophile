@@ -5,12 +5,58 @@ Session::requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
 $annee = $eleve->getAnneeScolaire();
+$classeId = $eleve->getClasseId();
+$db = Database::getInstance();
 
 $exerciceManager = new Exercice();
-// Tous les temps disponibles (pas de filtrage par année)
-$tempsDisponibles = TEMPS_CONJUGAISON;
-$verbes = $exerciceManager->getVerbes($annee);
-$categoriesOrtho = $exerciceManager->getCategoriesOrthographe();
+
+// ========================================
+// Vérifier les sélections de l'enseignant
+// ========================================
+
+// --- Temps de conjugaison ---
+$stmt = $db->prepare('SELECT temps FROM selections_conj_classe WHERE classe_id = ? AND actif = 1');
+$stmt->execute([$classeId]);
+$tempsSelection = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+if (!empty($tempsSelection)) {
+    $tempsDisponibles = [];
+    foreach ($tempsSelection as $code) {
+        if (isset(TEMPS_CONJUGAISON[$code])) {
+            $tempsDisponibles[$code] = TEMPS_CONJUGAISON[$code];
+        }
+    }
+} else {
+    $tempsDisponibles = TEMPS_CONJUGAISON;
+}
+
+// --- Verbes ---
+$stmt = $db->prepare('SELECT verbe_id FROM selections_verbes_classe WHERE classe_id = ? AND actif = 1');
+$stmt->execute([$classeId]);
+$verbesSelection = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+if (!empty($verbesSelection)) {
+    $placeholders = implode(',', array_fill(0, count($verbesSelection), '?'));
+    $stmt = $db->prepare("SELECT * FROM verbes WHERE id IN ($placeholders) AND actif = 1 ORDER BY groupe, infinitif");
+    $stmt->execute($verbesSelection);
+    $verbes = $stmt->fetchAll();
+} else {
+    $verbes = $exerciceManager->getVerbes($annee);
+}
+
+// --- Catégories orthographe ---
+$stmt = $db->prepare('SELECT categorie_id FROM selections_ortho_classe WHERE classe_id = ? AND actif = 1');
+$stmt->execute([$classeId]);
+$orthoSelection = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+if (!empty($orthoSelection)) {
+    $placeholders = implode(',', array_fill(0, count($orthoSelection), '?'));
+    $stmt = $db->prepare("SELECT * FROM categories_orthographe WHERE id IN ($placeholders) ORDER BY type, nom");
+    $stmt->execute($orthoSelection);
+    $categoriesOrtho = $stmt->fetchAll();
+} else {
+    $categoriesOrtho = $exerciceManager->getCategoriesOrthographe();
+}
 ?>
 
 <div class="container">
