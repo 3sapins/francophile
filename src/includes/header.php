@@ -35,6 +35,7 @@ $userData = Session::getUserData();
                     <?php elseif ($userType === 'enseignant' || $userType === 'admin'): ?>
                         <a href="/enseignant/dashboard.php" class="<?= $currentPage === 'dashboard' ? 'active' : '' ?>">Tableau de bord</a>
                         <a href="/enseignant/classes.php" class="<?= $currentPage === 'classes' ? 'active' : '' ?>">Mes classes</a>
+                        <a href="/enseignant/exercices.php" class="<?= $currentPage === 'exercices' ? 'active' : '' ?>">Exercices</a>
                         <a href="/enseignant/resultats.php" class="<?= $currentPage === 'resultats' ? 'active' : '' ?>">Résultats</a>
                         <?php if ($userType === 'admin'): ?>
                             <a href="/admin/dashboard.php" class="<?= $currentPage === 'admin' ? 'active' : '' ?>">Administration</a>
