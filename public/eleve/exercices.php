@@ -7,8 +7,8 @@ $eleve = Eleve::findById(Session::getUserId());
 $annee = $eleve->getAnneeScolaire();
 
 $exerciceManager = new Exercice();
-$tempsParAnnee = $exerciceManager->getTempsParAnnee();
-$tempsDisponibles = $tempsParAnnee[$annee] ?? $tempsParAnnee['9'];
+// Tous les temps disponibles (pas de filtrage par année)
+$tempsDisponibles = TEMPS_CONJUGAISON;
 $verbes = $exerciceManager->getVerbes($annee);
 $categoriesOrtho = $exerciceManager->getCategoriesOrthographe();
 ?>
