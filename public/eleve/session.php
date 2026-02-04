@@ -28,13 +28,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Utiliser les formats enrichis si niveau >= 2
             if ((int)$niveau >= 2) {
-                $exercices = $exerciceManager->genererExercicesConjugaisonEnrichis(
-                    array_map('intval', $verbes),
-                    $temps,
-                    $mode,
-                    $nombre,
-                    $niveau
-                );
+                try {
+                    $exercices = $exerciceManager->genererExercicesConjugaisonEnrichis(
+                        array_map('intval', $verbes),
+                        $temps,
+                        $mode,
+                        $nombre,
+                        $niveau
+                    );
+                } catch (\Throwable $e) {
+                    // Fallback vers exercices classiques
+                    $exercices = $exerciceManager->genererExercicesConjugaison(
+                        array_map('intval', $verbes),
+                        $temps,
+                        $mode,
+                        $nombre,
+                        $niveau
+                    );
+                }
             } else {
                 $exercices = $exerciceManager->genererExercicesConjugaison(
                     array_map('intval', $verbes),
@@ -99,6 +110,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($exercices) && !$error) {
         $error = 'Aucun exercice trouvé avec ces critères. Essaie d\'autres options.';
     }
+    
+    // FILET DE SÉCURITÉ : s'assurer que chaque exercice a un format valide
+    foreach ($exercices as &$ex) {
+        if (!isset($ex['format']) || empty($ex['format'])) {
+            $ex['format'] = !empty($ex['options']) ? 'qcm' : 'input';
+        }
+    }
+    unset($ex);
 }
 
 // Si pas de POST ou erreur, rediriger

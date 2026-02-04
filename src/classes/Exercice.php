@@ -236,9 +236,6 @@ class Exercice {
         $placeholders = implode(',', array_fill(0, count($categoriesIds), '?'));
         $params = $categoriesIds;
         
-        // On prend plus d'exercices bruts pour pouvoir varier les formats
-        $sqlNombre = $nombre * 2;
-        
         $sql = "
             SELECT e.*, c.nom as categorie_nom, c.type as categorie_type
             FROM exercices_orthographe e
@@ -254,51 +251,97 @@ class Exercice {
             $params[] = $annee;
         }
         
-        $sql .= ' ORDER BY RAND() LIMIT ?';
-        $params[] = $sqlNombre;
+        $sqlLimit = (int)($nombre * 2);
+        $sql .= " ORDER BY RAND() LIMIT $sqlLimit";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $exercicesDb = $stmt->fetchAll();
         
         $exercices = [];
-        $formats = ['qcm', 'vrai_faux', 'intrus', 'transformation', 'multi_trous'];
         $formatIndex = 0;
         
         foreach ($exercicesDb as $ex) {
             if (count($exercices) >= $nombre) break;
             
             $options = [$ex['reponse_correcte']];
-            if ($ex['options_incorrectes']) {
+            if (!empty($ex['options_incorrectes'])) {
                 $incorrectes = json_decode($ex['options_incorrectes'], true);
                 if (is_array($incorrectes)) {
                     $options = array_merge($options, $incorrectes);
                 }
             }
+            shuffle($options);
             
-            // Varier les formats selon le niveau
-            $format = 'qcm'; // default
-            if ((int)$niveau >= 2) {
-                $format = $formats[$formatIndex % count($formats)];
-                $formatIndex++;
-            } elseif ($formatIndex % 3 === 2) {
-                // Même en niveau 1, alterner un peu
-                $format = 'vrai_faux';
-                $formatIndex++;
+            // Base commune
+            $base = [
+                'type' => 'orthographe_' . ($ex['type_exercice'] ?? 'choix_multiple'),
+                'id' => $ex['id'],
+                'categorie' => $ex['categorie_nom'],
+                'categorie_type' => $ex['categorie_type'],
+                'explication' => $ex['explication'] ?? null,
+                'niveau' => $ex['niveau_difficulte'],
+                'groupe_homophones' => $ex['groupe_homophones'] ?? null,
+                'reponse_correcte' => $ex['reponse_correcte']
+            ];
+            
+            // Niveau 1 : QCM classique uniquement
+            if ((int)$niveau <= 1) {
+                $exercices[] = array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options
+                ]);
+                continue;
+            }
+            
+            // Niveau 2+ : varier les formats
+            $format = match($formatIndex % 5) {
+                0 => 'qcm',
+                1 => 'vrai_faux',
+                2 => 'input',
+                3 => 'qcm',     // 2x QCM pour garder un bon ratio
+                4 => 'vrai_faux',
+                default => 'qcm'
+            };
+            $formatIndex++;
+            
+            if ($format === 'vrai_faux') {
+                $incorrectes = json_decode($ex['options_incorrectes'] ?? '[]', true);
+                if (!empty($incorrectes) && random_int(0, 1) === 0) {
+                    // Montrer la phrase avec une erreur
+                    $mauvaise = $incorrectes[array_rand($incorrectes)];
+                    $exercices[] = array_merge($base, [
+                        'format' => 'vrai_faux',
+                        'question' => str_replace('___', $mauvaise, $ex['phrase']),
+                        'indication' => 'Cette phrase est-elle correcte ?',
+                        'reponse_correcte' => 'faux',
+                        'correction' => str_replace('___', $ex['reponse_correcte'], $ex['phrase'])
+                    ]);
+                } else {
+                    // Montrer la phrase correcte
+                    $exercices[] = array_merge($base, [
+                        'format' => 'vrai_faux',
+                        'question' => str_replace('___', $ex['reponse_correcte'], $ex['phrase']),
+                        'indication' => 'Cette phrase est-elle correcte ?',
+                        'reponse_correcte' => 'vrai',
+                        'correction' => null
+                    ]);
+                }
+            } elseif ($format === 'input') {
+                $exercices[] = array_merge($base, [
+                    'format' => 'input',
+                    'question' => $ex['phrase'],
+                    'indication' => 'Écris le mot manquant'
+                ]);
             } else {
-                $formatIndex++;
+                // QCM classique
+                $exercices[] = array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options
+                ]);
             }
-            
-            $generated = $this->convertToFormat($ex, $options, $format, $niveau);
-            if ($generated) {
-                $exercices[] = $generated;
-            }
-        }
-        
-        // Ajouter des exercices intrus si assez de données (niveau 2+)
-        if ((int)$niveau >= 2 && count($exercices) < $nombre) {
-            $intrusExercices = $this->genererExercicesIntrus($categoriesIds, $nombre - count($exercices), $niveau);
-            $exercices = array_merge($exercices, $intrusExercices);
         }
         
         shuffle($exercices);
@@ -486,8 +529,9 @@ class Exercice {
      * Générer des exercices de conjugaison enrichis (formats variés)
      */
     public function genererExercicesConjugaisonEnrichis(array $verbesIds, array $temps, string $mode, int $nombre, string $niveau): array {
-        // D'abord, obtenir les exercices classiques
-        $exercicesBase = $this->genererExercicesConjugaison($verbesIds, $temps, $mode, $nombre * 2, $niveau);
+        try {
+            // D'abord, obtenir les exercices classiques
+            $exercicesBase = $this->genererExercicesConjugaison($verbesIds, $temps, $mode, $nombre * 2, $niveau);
         
         $exercices = [];
         $formatCycle = 0;
@@ -569,6 +613,17 @@ class Exercice {
         
         shuffle($exercices);
         return array_slice($exercices, 0, $nombre);
+        } catch (\Throwable $e) {
+            // Fallback : retourner les exercices de base avec format input
+            $exercicesBase = $this->genererExercicesConjugaison($verbesIds, $temps, $mode, $nombre, $niveau);
+            foreach ($exercicesBase as &$ex) {
+                if (!isset($ex['format'])) {
+                    $ex['format'] = 'input';
+                }
+            }
+            unset($ex);
+            return $exercicesBase;
+        }
     }
     
     /**
