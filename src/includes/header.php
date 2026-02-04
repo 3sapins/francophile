@@ -22,7 +22,7 @@ header('Pragma: no-cache');
     <title><?= $pageTitle ?? 'Francophile' ?> - Francophile.ch</title>
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body class="<?= $bodyClass ?? '' ?>">
     <header class="main-header">
