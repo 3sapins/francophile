@@ -1,11 +1,18 @@
 <?php
-require_once __DIR__ . '/../config/config.php';
-Session::start();
+/**
+ * HEADER HTML - Produit le HTML du header
+ * IMPORTANT: init.php DOIT être inclus avant ce fichier
+ */
 
-$currentPage = basename($_SERVER['PHP_SELF'], '.php');
-$isLoggedIn = Session::isLoggedIn();
-$userType = Session::getUserType();
-$userData = Session::getUserData();
+// Si init.php n'a pas été chargé, le charger maintenant (compatibilité)
+if (!defined('DB_HOST')) {
+    require_once __DIR__ . '/init.php';
+}
+
+// Anti-cache pour empêcher le bouton retour de montrer des pages périmées
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
 ?>
 <!DOCTYPE html>
 <html lang="fr">

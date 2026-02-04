@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Ma progression';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $db = Database::getInstance();
 
 // Récupérer toutes les progressions
@@ -20,7 +21,7 @@ $offset = ($page - 1) * $perPage;
 $stmt = $db->prepare('SELECT COUNT(*) FROM sessions_exercices WHERE eleve_id = ?');
 $stmt->execute([$eleve->getId()]);
 $totalSessions = (int) $stmt->fetchColumn();
-$totalPages = ceil($totalSessions / $perPage);
+$totalPages = max(1, ceil($totalSessions / $perPage));
 
 $stmt = $db->prepare('
     SELECT * FROM sessions_exercices 
@@ -58,6 +59,8 @@ $stmt = $db->prepare('
 ');
 $stmt->execute([$eleve->getId()]);
 $statsDomaines = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

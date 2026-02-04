@@ -1,7 +1,8 @@
 <?php
 $pageTitle = 'Tableau de bord';
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEnseignant();
 require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEnseignant();
 
 $enseignant = Enseignant::findById(Session::getUserId());
 $stats = $enseignant->getStatistiques();

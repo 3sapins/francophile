@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Exercices';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $annee = $eleve->getAnneeScolaire();
 $classeId = $eleve->getClasseId();
 $db = Database::getInstance();
@@ -57,6 +58,8 @@ if (!empty($orthoSelection)) {
 } else {
     $categoriesOrtho = $exerciceManager->getCategoriesOrthographe();
 }
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

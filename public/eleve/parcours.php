@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Parcours thématiques';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $db = Database::getInstance();
 
 // Récupérer tous les parcours actifs
@@ -30,6 +31,8 @@ $parDomaine = [];
 foreach ($parcours as $p) {
     $parDomaine[$p['domaine']][] = $p;
 }
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

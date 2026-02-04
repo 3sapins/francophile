@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Mes badges';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $db = Database::getInstance();
 $annee = $eleve->getAnneeScolaire();
 
@@ -40,6 +41,8 @@ foreach ($tousLesBadges as $badge) {
 $nbObtenus = count($badgesObtenus);
 $nbTotal = count($tousLesBadges);
 $progression = $nbTotal > 0 ? round(($nbObtenus / $nbTotal) * 100) : 0;
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

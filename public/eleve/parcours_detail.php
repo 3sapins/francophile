@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Parcours';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $db = Database::getInstance();
 $parcoursId = (int)($_GET['id'] ?? 0);
 
@@ -42,6 +43,8 @@ foreach ($stmt->fetchAll() as $t) {
 }
 
 $pageTitle = $parcours['nom'];
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

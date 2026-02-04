@@ -1,9 +1,10 @@
 <?php
 $pageTitle = 'Session d\'exercices';
-require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEleve();
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEleve();
 
 $eleve = Eleve::findById(Session::getUserId());
+if (!$eleve) { Session::destroy(); header('Location: /login.php'); exit; }
 $annee = $eleve->getAnneeScolaire();
 $exerciceManager = new Exercice();
 
@@ -83,6 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $error) {
     header('Location: /eleve/exercices.php');
     exit;
 }
+
+require_once __DIR__ . '/../../src/includes/header.php';
 ?>
 
 <div class="container">

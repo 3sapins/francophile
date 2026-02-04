@@ -1,7 +1,8 @@
 <?php
 $pageTitle = 'Résultats';
+require_once __DIR__ . '/../../src/includes/init.php';
+requireEnseignant();
 require_once __DIR__ . '/../../src/includes/header.php';
-Session::requireEnseignant();
 
 $enseignant = Enseignant::findById(Session::getUserId());
 $db = Database::getInstance();
