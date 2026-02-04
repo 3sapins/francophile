@@ -26,13 +26,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($verbes) || empty($temps)) {
             $error = 'Sélectionne au moins un verbe et un temps.';
         } else {
-            $exercices = $exerciceManager->genererExercicesConjugaison(
-                array_map('intval', $verbes),
-                $temps,
-                $mode,
-                $nombre,
-                $niveau
-            );
+            // Utiliser les formats enrichis si niveau >= 2
+            if ((int)$niveau >= 2) {
+                $exercices = $exerciceManager->genererExercicesConjugaisonEnrichis(
+                    array_map('intval', $verbes),
+                    $temps,
+                    $mode,
+                    $nombre,
+                    $niveau
+                );
+            } else {
+                $exercices = $exerciceManager->genererExercicesConjugaison(
+                    array_map('intval', $verbes),
+                    $temps,
+                    $mode,
+                    $nombre,
+                    $niveau
+                );
+                // Ajouter le format par défaut
+                foreach ($exercices as &$ex) {
+                    if (!isset($ex['format'])) {
+                        $ex['format'] = empty($ex['options']) ? 'input' : 'qcm';
+                    }
+                }
+                unset($ex);
+            }
             
             if (!empty($exercices)) {
                 $sessionId = $exerciceManager->creerSession(
@@ -57,6 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $niveau,
                 $annee
             );
+            // S'assurer que chaque exercice a un format
+            foreach ($exercices as &$ex) {
+                if (!isset($ex['format'])) {
+                    $ex['format'] = !empty($ex['options']) ? 'qcm' : 'input';
+                }
+            }
+            unset($ex);
 
             if (!empty($exercices)) {
                 $sessionId = $exerciceManager->creerSession(

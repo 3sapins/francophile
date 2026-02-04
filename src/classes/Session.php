@@ -6,19 +6,48 @@ class Session {
     
     public static function start(): void {
         if (session_status() === PHP_SESSION_NONE) {
+            // Assurer un répertoire de session persistant
+            $savePath = getenv('SESSION_SAVE_PATH') ?: '/tmp/francophile_sessions';
+            if (!is_dir($savePath)) {
+                @mkdir($savePath, 0700, true);
+            }
+            if (is_dir($savePath) && is_writable($savePath)) {
+                session_save_path($savePath);
+            }
+            
             $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
                      || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-                     || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+                     || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+                     || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
             
             session_name(SESSION_NAME);
             session_set_cookie_params([
                 'lifetime' => SESSION_LIFETIME,
                 'path' => '/',
+                'domain' => '',
                 'secure' => $isSecure,
                 'httponly' => true,
                 'samesite' => 'Lax'
             ]);
             session_start();
+            
+            // Prolonger la session à chaque requête
+            if (isset($_SESSION['login_time'])) {
+                $elapsed = time() - $_SESSION['login_time'];
+                if ($elapsed > SESSION_LIFETIME) {
+                    // Session expirée
+                    self::destroy();
+                    return;
+                }
+                // Regénérer l'ID périodiquement (toutes les 30 min) pour la sécurité
+                if ($elapsed > 1800 && !isset($_SESSION['last_regenerate'])) {
+                    self::regenerate();
+                    $_SESSION['last_regenerate'] = time();
+                } elseif (isset($_SESSION['last_regenerate']) && (time() - $_SESSION['last_regenerate']) > 1800) {
+                    self::regenerate();
+                    $_SESSION['last_regenerate'] = time();
+                }
+            }
         }
     }
     

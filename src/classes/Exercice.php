@@ -230,11 +230,14 @@ class Exercice {
     }
     
     /**
-     * Générer des exercices d'orthographe
+     * Générer des exercices d'orthographe (enrichis avec formats variés)
      */
     public function genererExercicesOrthographe(array $categoriesIds, int $nombre = 10, string $niveau = '1', ?string $annee = null): array {
         $placeholders = implode(',', array_fill(0, count($categoriesIds), '?'));
         $params = $categoriesIds;
+        
+        // On prend plus d'exercices bruts pour pouvoir varier les formats
+        $sqlNombre = $nombre * 2;
         
         $sql = "
             SELECT e.*, c.nom as categorie_nom, c.type as categorie_type
@@ -252,14 +255,19 @@ class Exercice {
         }
         
         $sql .= ' ORDER BY RAND() LIMIT ?';
-        $params[] = $nombre;
+        $params[] = $sqlNombre;
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $exercicesDb = $stmt->fetchAll();
         
         $exercices = [];
+        $formats = ['qcm', 'vrai_faux', 'intrus', 'transformation', 'multi_trous'];
+        $formatIndex = 0;
+        
         foreach ($exercicesDb as $ex) {
+            if (count($exercices) >= $nombre) break;
+            
             $options = [$ex['reponse_correcte']];
             if ($ex['options_incorrectes']) {
                 $incorrectes = json_decode($ex['options_incorrectes'], true);
@@ -267,23 +275,338 @@ class Exercice {
                     $options = array_merge($options, $incorrectes);
                 }
             }
-            shuffle($options);
             
-            $exercices[] = [
-                'type' => 'orthographe_' . $ex['type_exercice'],
-                'id' => $ex['id'],
-                'categorie' => $ex['categorie_nom'],
-                'categorie_type' => $ex['categorie_type'],
+            // Varier les formats selon le niveau
+            $format = 'qcm'; // default
+            if ((int)$niveau >= 2) {
+                $format = $formats[$formatIndex % count($formats)];
+                $formatIndex++;
+            } elseif ($formatIndex % 3 === 2) {
+                // Même en niveau 1, alterner un peu
+                $format = 'vrai_faux';
+                $formatIndex++;
+            } else {
+                $formatIndex++;
+            }
+            
+            $generated = $this->convertToFormat($ex, $options, $format, $niveau);
+            if ($generated) {
+                $exercices[] = $generated;
+            }
+        }
+        
+        // Ajouter des exercices intrus si assez de données (niveau 2+)
+        if ((int)$niveau >= 2 && count($exercices) < $nombre) {
+            $intrusExercices = $this->genererExercicesIntrus($categoriesIds, $nombre - count($exercices), $niveau);
+            $exercices = array_merge($exercices, $intrusExercices);
+        }
+        
+        shuffle($exercices);
+        return array_slice($exercices, 0, $nombre);
+    }
+    
+    /**
+     * Convertir un exercice brut dans un format spécifique
+     */
+    private function convertToFormat(array $ex, array $options, string $format, string $niveau): ?array {
+        $base = [
+            'type' => 'orthographe_' . $ex['type_exercice'],
+            'id' => $ex['id'],
+            'categorie' => $ex['categorie_nom'],
+            'categorie_type' => $ex['categorie_type'],
+            'explication' => $ex['explication'],
+            'niveau' => $ex['niveau_difficulte'],
+            'groupe_homophones' => $ex['groupe_homophones'] ?? null
+        ];
+        
+        switch ($format) {
+            case 'qcm':
+                shuffle($options);
+                return array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options,
+                    'reponse_correcte' => $ex['reponse_correcte']
+                ]);
+                
+            case 'vrai_faux':
+                // 50% chance: montrer la phrase correcte, 50% avec une erreur
+                $showCorrect = random_int(0, 1) === 1;
+                if ($showCorrect) {
+                    // Phrase avec la bonne réponse
+                    $phraseComplete = str_replace('___', $ex['reponse_correcte'], $ex['phrase']);
+                    return array_merge($base, [
+                        'format' => 'vrai_faux',
+                        'question' => $phraseComplete,
+                        'indication' => 'Cette phrase est-elle correcte ?',
+                        'reponse_correcte' => 'vrai',
+                        'correction' => null
+                    ]);
+                } else {
+                    // Phrase avec une mauvaise réponse
+                    $incorrectes = json_decode($ex['options_incorrectes'] ?? '[]', true);
+                    if (empty($incorrectes)) return null;
+                    $mauvaise = $incorrectes[array_rand($incorrectes)];
+                    $phraseIncorrecte = str_replace('___', $mauvaise, $ex['phrase']);
+                    $phraseCorrecte = str_replace('___', $ex['reponse_correcte'], $ex['phrase']);
+                    return array_merge($base, [
+                        'format' => 'vrai_faux',
+                        'question' => $phraseIncorrecte,
+                        'indication' => 'Cette phrase est-elle correcte ?',
+                        'reponse_correcte' => 'faux',
+                        'correction' => $phraseCorrecte
+                    ]);
+                }
+                
+            case 'transformation':
+                // Transformer la phrase en changeant le sujet ou le nombre
+                $transformations = $this->genererTransformation($ex);
+                if ($transformations) {
+                    return array_merge($base, $transformations);
+                }
+                // Fallback to QCM
+                shuffle($options);
+                return array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options,
+                    'reponse_correcte' => $ex['reponse_correcte']
+                ]);
+                
+            case 'intrus':
+                // Needs grouped exercises, handled separately
+                shuffle($options);
+                return array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options,
+                    'reponse_correcte' => $ex['reponse_correcte']
+                ]);
+                
+            case 'multi_trous':
+                // Need multiple blanks, handled by grouping
+                shuffle($options);
+                return array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options,
+                    'reponse_correcte' => $ex['reponse_correcte']
+                ]);
+                
+            default:
+                shuffle($options);
+                return array_merge($base, [
+                    'format' => 'qcm',
+                    'question' => $ex['phrase'],
+                    'options' => $options,
+                    'reponse_correcte' => $ex['reponse_correcte']
+                ]);
+        }
+    }
+    
+    /**
+     * Générer une transformation à partir d'un exercice
+     */
+    private function genererTransformation(array $ex): ?array {
+        // Transformations possibles pour les homophones
+        $consignes = [
+            "Réécris la phrase en remplaçant le sujet par « nous ».",
+            "Réécris la phrase au pluriel.",
+            "Réécris la phrase en remplaçant le sujet par « ils ».",
+            "Réécris cette phrase à la forme négative.",
+        ];
+        
+        // Simple: demander de compléter la phrase en écrivant le mot manquant
+        if (strpos($ex['phrase'], '___') !== false) {
+            return [
+                'format' => 'input',
                 'question' => $ex['phrase'],
-                'options' => $options,
-                'reponse_correcte' => $ex['reponse_correcte'],
-                'explication' => $ex['explication'],
-                'niveau' => $ex['niveau_difficulte'],
-                'groupe_homophones' => $ex['groupe_homophones']
+                'indication' => 'Écris le mot manquant (pas de choix multiple cette fois !)',
+                'reponse_correcte' => $ex['reponse_correcte']
             ];
         }
         
+        return null;
+    }
+    
+    /**
+     * Générer des exercices de type "intrus"
+     */
+    private function genererExercicesIntrus(array $categoriesIds, int $nombre, string $niveau): array {
+        $exercices = [];
+        $placeholders = implode(',', array_fill(0, count($categoriesIds), '?'));
+        
+        // Récupérer des groupes d'homophones
+        $stmt = $this->db->prepare("
+            SELECT DISTINCT groupe_homophones FROM exercices_orthographe 
+            WHERE categorie_id IN ($placeholders) AND groupe_homophones IS NOT NULL AND actif = 1
+            ORDER BY RAND() LIMIT ?
+        ");
+        $stmt->execute(array_merge($categoriesIds, [$nombre]));
+        $groupes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        foreach ($groupes as $groupe) {
+            // Pour chaque groupe, créer un exercice intrus
+            $mots = explode('/', $groupe);
+            if (count($mots) < 2) continue;
+            
+            // L'intrus est un homophone d'un autre groupe
+            $stmt2 = $this->db->prepare("
+                SELECT DISTINCT groupe_homophones FROM exercices_orthographe 
+                WHERE categorie_id IN ($placeholders) AND groupe_homophones IS NOT NULL 
+                AND groupe_homophones != ? AND actif = 1
+                ORDER BY RAND() LIMIT 1
+            ");
+            $stmt2->execute(array_merge($categoriesIds, [$groupe]));
+            $autreGroupe = $stmt2->fetchColumn();
+            
+            if ($autreGroupe) {
+                $autresMots = explode('/', $autreGroupe);
+                $intrus = $autresMots[array_rand($autresMots)];
+                $items = array_merge($mots, [$intrus]);
+                
+                $exercices[] = [
+                    'type' => 'orthographe_intrus',
+                    'id' => 0,
+                    'format' => 'intrus',
+                    'question' => 'Quel mot n\'appartient pas au même groupe d\'homophones ?',
+                    'indication' => 'Trouve l\'intrus parmi ces mots',
+                    'items' => $items,
+                    'reponse_correcte' => $intrus,
+                    'explication' => "Le groupe « $groupe » ne contient pas « $intrus » (qui fait partie de « $autreGroupe »).",
+                    'niveau' => $niveau
+                ];
+            }
+        }
+        
         return $exercices;
+    }
+    
+    /**
+     * Générer des exercices de conjugaison enrichis (formats variés)
+     */
+    public function genererExercicesConjugaisonEnrichis(array $verbesIds, array $temps, string $mode, int $nombre, string $niveau): array {
+        // D'abord, obtenir les exercices classiques
+        $exercicesBase = $this->genererExercicesConjugaison($verbesIds, $temps, $mode, $nombre * 2, $niveau);
+        
+        $exercices = [];
+        $formatCycle = 0;
+        
+        foreach ($exercicesBase as $ex) {
+            if (count($exercices) >= $nombre) break;
+            
+            $format = 'input'; // default for conjugation
+            
+            if ((int)$niveau >= 2) {
+                // Varier les formats
+                switch ($formatCycle % 4) {
+                    case 0: $format = 'input'; break;
+                    case 1: $format = 'qcm'; break;
+                    case 2: $format = 'vrai_faux'; break;
+                    case 3: $format = 'transformation'; break;
+                }
+                $formatCycle++;
+            }
+            
+            switch ($format) {
+                case 'qcm':
+                    // Générer des options incorrectes pour la conjugaison
+                    $options = [$ex['reponse_correcte']];
+                    $fausses = $this->genererFaussesConjugaisons($ex['infinitif'], $ex['temps'], $ex['personne'], $ex['reponse_correcte']);
+                    $options = array_merge($options, array_slice($fausses, 0, 3));
+                    shuffle($options);
+                    $ex['format'] = 'qcm';
+                    $ex['options'] = $options;
+                    break;
+                    
+                case 'vrai_faux':
+                    $showCorrect = random_int(0, 1) === 1;
+                    $pronomAffiche = PERSONNES[$ex['personne']] ?? $ex['personne'];
+                    if ($showCorrect) {
+                        $ex['format'] = 'vrai_faux';
+                        $ex['question'] = "$pronomAffiche {$ex['reponse_correcte']}";
+                        $ex['indication'] = "({$ex['infinitif']}, " . (TEMPS_CONJUGAISON[$ex['temps']] ?? $ex['temps']) . ") — Correct ?";
+                        $ex['reponse_correcte'] = 'vrai';
+                        $ex['correction'] = null;
+                    } else {
+                        $fausses = $this->genererFaussesConjugaisons($ex['infinitif'], $ex['temps'], $ex['personne'], $ex['reponse_correcte']);
+                        if (!empty($fausses)) {
+                            $fausse = $fausses[0];
+                            $ex['format'] = 'vrai_faux';
+                            $ex['correction'] = "$pronomAffiche {$ex['reponse_correcte']}";
+                            $ex['question'] = "$pronomAffiche $fausse";
+                            $ex['indication'] = "({$ex['infinitif']}, " . (TEMPS_CONJUGAISON[$ex['temps']] ?? $ex['temps']) . ") — Correct ?";
+                            $ex['reponse_correcte'] = 'faux';
+                        }
+                    }
+                    break;
+                    
+                case 'transformation':
+                    // Changer de personne
+                    $personnes = ['je', 'tu', 'il', 'nous', 'vous', 'ils'];
+                    $autrePersonne = $personnes[array_rand($personnes)];
+                    while ($autrePersonne === $ex['personne']) $autrePersonne = $personnes[array_rand($personnes)];
+                    $nouvelleFormeCorrecte = $this->conjugueur->conjuguer($ex['infinitif'], $ex['temps'], $autrePersonne);
+                    if ($nouvelleFormeCorrecte) {
+                        $pronomOriginal = PERSONNES[$ex['personne']] ?? $ex['personne'];
+                        $pronomNouveau = PERSONNES[$autrePersonne] ?? $autrePersonne;
+                        $ex['format'] = 'transformation';
+                        $ex['consigne'] = "Conjugue avec « $pronomNouveau » au lieu de « $pronomOriginal »";
+                        $ex['question'] = "$pronomOriginal {$ex['reponse_correcte']}";
+                        $ex['reponse_correcte'] = "$pronomNouveau $nouvelleFormeCorrecte";
+                    } else {
+                        $ex['format'] = 'input';
+                    }
+                    break;
+                    
+                default:
+                    $ex['format'] = 'input';
+                    break;
+            }
+            
+            $exercices[] = $ex;
+        }
+        
+        shuffle($exercices);
+        return array_slice($exercices, 0, $nombre);
+    }
+    
+    /**
+     * Générer des formes incorrectes de conjugaison (pour QCM et vrai/faux)
+     */
+    private function genererFaussesConjugaisons(string $infinitif, string $temps, string $personne, string $formeCorrecte): array {
+        $fausses = [];
+        $personnes = ['je', 'tu', 'il', 'nous', 'vous', 'ils'];
+        
+        // Prendre les formes d'autres personnes
+        foreach ($personnes as $p) {
+            if ($p === $personne) continue;
+            $forme = $this->conjugueur->conjuguer($infinitif, $temps, $p);
+            if ($forme && mb_strtolower($forme) !== mb_strtolower($formeCorrecte)) {
+                $fausses[] = $forme;
+            }
+            if (count($fausses) >= 3) break;
+        }
+        
+        // Erreurs classiques si pas assez
+        if (count($fausses) < 3) {
+            $erreurs = [
+                $formeCorrecte . 's',
+                $formeCorrecte . 'e',
+                rtrim($formeCorrecte, 's'),
+                rtrim($formeCorrecte, 'e'),
+                str_replace('é', 'er', $formeCorrecte),
+                str_replace('er', 'é', $formeCorrecte),
+            ];
+            foreach ($erreurs as $err) {
+                if ($err !== $formeCorrecte && !in_array($err, $fausses) && strlen($err) > 1) {
+                    $fausses[] = $err;
+                }
+                if (count($fausses) >= 3) break;
+            }
+        }
+        
+        return array_slice($fausses, 0, 3);
     }
     
     /**

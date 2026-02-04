@@ -73,9 +73,15 @@ define('PERSONNES', [
 ]);
 define('PERSONNES_IMPERATIF', ['tu', 'nous', 'vous']);
 
-// DEBUG TEMPORAIRE - à désactiver après diagnostic
+// ERROR HANDLING - Log plutôt qu'afficher (évite le output avant session_start)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+if (DEBUG_MODE) {
+    ini_set('display_errors', 1);
+} else {
+    ini_set('display_errors', 0);
+    ini_set('log_errors', 1);
+    ini_set('error_log', '/tmp/francophile_errors.log');
+}
 
 date_default_timezone_set('Europe/Zurich');
 
