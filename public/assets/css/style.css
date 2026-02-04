@@ -221,6 +221,9 @@ a:hover { color: var(--primary-dark); }
 .quick-action.badges-card { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
 .quick-action.badges-card:hover { border-color: var(--warning); }
 .quick-action.badges-card .quick-action-icon { background: rgba(245,158,11,0.1); }
+.quick-action.parcours-qa { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1e40af; }
+.quick-action.parcours-qa:hover { border-color: #3b82f6; }
+.quick-action.parcours-qa .quick-action-icon { background: rgba(59,130,246,0.1); }
 
 /* WELCOME BANNER */
 .welcome-banner { background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent)); color: white; padding: var(--spacing-2xl); border-radius: var(--radius-2xl); margin-bottom: var(--spacing-xl); position: relative; overflow: hidden; }

@@ -27,15 +27,15 @@ $hasData = $stats['total_exercices'] > 0;
 
     <!-- Quick actions -->
     <div class="quick-actions fade-in">
+        <a href="/eleve/parcours.php" class="quick-action parcours-qa">
+            <div class="quick-action-icon">🗺️</div>
+            <div class="quick-action-title">Parcours</div>
+            <div class="quick-action-desc">Progression guidée</div>
+        </a>
         <a href="/eleve/exercices.php" class="quick-action conjugaison">
             <div class="quick-action-icon">✏️</div>
-            <div class="quick-action-title">Conjugaison</div>
-            <div class="quick-action-desc">Entraîne-toi aux temps</div>
-        </a>
-        <a href="/eleve/exercices.php" class="quick-action orthographe">
-            <div class="quick-action-icon">📝</div>
-            <div class="quick-action-title">Orthographe</div>
-            <div class="quick-action-desc">Homophones & accords</div>
+            <div class="quick-action-title">Exercices libres</div>
+            <div class="quick-action-desc">Entraînement au choix</div>
         </a>
         <a href="/eleve/progression.php" class="quick-action progression">
             <div class="quick-action-icon">📊</div>
