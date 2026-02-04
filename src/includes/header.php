@@ -20,7 +20,13 @@ $userData = Session::getUserData();
 <body class="<?= $bodyClass ?? '' ?>">
     <header class="main-header">
         <div class="container">
-            <a href="/" class="logo">
+            <?php 
+            $logoTarget = '/';
+            if ($isLoggedIn) {
+                $logoTarget = ($userType === 'eleve') ? '/eleve/dashboard.php' : '/enseignant/dashboard.php';
+            }
+            ?>
+            <a href="<?= $logoTarget ?>" class="logo">
                 <span class="logo-icon">📚</span>
                 <span class="logo-text">Francophile</span>
             </a>
@@ -29,7 +35,8 @@ $userData = Session::getUserData();
                 <?php if ($isLoggedIn): ?>
                     <?php if ($userType === 'eleve'): ?>
                         <a href="/eleve/dashboard.php" class="<?= $currentPage === 'dashboard' ? 'active' : '' ?>">Tableau de bord</a>
-                        <a href="/eleve/exercices.php" class="<?= $currentPage === 'exercices' ? 'active' : '' ?>">Exercices</a>
+                        <a href="/eleve/parcours.php" class="<?= $currentPage === 'parcours' || $currentPage === 'parcours_detail' || $currentPage === 'parcours_jouer' ? 'active' : '' ?>">Parcours</a>
+                        <a href="/eleve/exercices.php" class="<?= $currentPage === 'exercices' ? 'active' : '' ?>">Exercices libres</a>
                         <a href="/eleve/progression.php" class="<?= $currentPage === 'progression' ? 'active' : '' ?>">Ma progression</a>
                         <a href="/eleve/badges.php" class="<?= $currentPage === 'badges' ? 'active' : '' ?>">Mes badges</a>
                     <?php elseif ($userType === 'enseignant' || $userType === 'admin'): ?>
