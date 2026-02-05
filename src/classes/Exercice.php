@@ -181,11 +181,11 @@ class Exercice {
             SELECT * FROM phrases_conjugaison
             WHERE verbe_id = ? AND temps = ? AND personne = ?
             AND (niveau_difficulte <= ? OR niveau_difficulte IS NULL)
-            ORDER BY RAND()
-            LIMIT 1
         ');
         $stmt->execute([$verbeId, $temps, $personne, $niveau]);
-        return $stmt->fetch() ?: null;
+        $phrases = $stmt->fetchAll();
+        if (empty($phrases)) return null;
+        return $phrases[array_rand($phrases)];
     }
     
     /**
@@ -251,12 +251,17 @@ class Exercice {
             $params[] = $annee;
         }
         
+        // Étape 1 : récupérer les IDs éligibles (rapide, pas de RAND)
         $sqlLimit = (int)($nombre * 2);
-        $sql .= " ORDER BY RAND() LIMIT $sqlLimit";
+        $sql .= " ORDER BY e.id";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $exercicesDb = $stmt->fetchAll();
+        
+        // Étape 2 : mélanger côté PHP (beaucoup plus rapide que ORDER BY RAND)
+        shuffle($exercicesDb);
+        $exercicesDb = array_slice($exercicesDb, 0, $sqlLimit);
         
         $exercices = [];
         $formatIndex = 0;
@@ -480,13 +485,15 @@ class Exercice {
         $placeholders = implode(',', array_fill(0, count($categoriesIds), '?'));
         
         // Récupérer des groupes d'homophones
+        $intrusLimit = (int)$nombre;
         $stmt = $this->db->prepare("
             SELECT DISTINCT groupe_homophones FROM exercices_orthographe 
             WHERE categorie_id IN ($placeholders) AND groupe_homophones IS NOT NULL AND actif = 1
-            ORDER BY RAND() LIMIT ?
         ");
-        $stmt->execute(array_merge($categoriesIds, [$nombre]));
+        $stmt->execute($categoriesIds);
         $groupes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        shuffle($groupes);
+        $groupes = array_slice($groupes, 0, $intrusLimit);
         
         foreach ($groupes as $groupe) {
             // Pour chaque groupe, créer un exercice intrus
@@ -498,10 +505,10 @@ class Exercice {
                 SELECT DISTINCT groupe_homophones FROM exercices_orthographe 
                 WHERE categorie_id IN ($placeholders) AND groupe_homophones IS NOT NULL 
                 AND groupe_homophones != ? AND actif = 1
-                ORDER BY RAND() LIMIT 1
             ");
             $stmt2->execute(array_merge($categoriesIds, [$groupe]));
-            $autreGroupe = $stmt2->fetchColumn();
+            $autresGroupes = $stmt2->fetchAll(PDO::FETCH_COLUMN);
+            $autreGroupe = !empty($autresGroupes) ? $autresGroupes[array_rand($autresGroupes)] : null;
             
             if ($autreGroupe) {
                 $autresMots = explode('/', $autreGroupe);

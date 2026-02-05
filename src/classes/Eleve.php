@@ -306,35 +306,26 @@ class Eleve extends User {
      * Obtenir les statistiques globales
      */
     public function getStatistiques(): array {
-        // Total exercices
-        $stmt = $this->db->prepare('SELECT SUM(nombre_questions) FROM sessions_exercices WHERE eleve_id = ?');
-        $stmt->execute([$this->id]);
-        $totalExercices = (int) $stmt->fetchColumn();
+        // Une seule requête au lieu de 4
+        $stmt = $this->db->prepare('
+            SELECT 
+                (SELECT COALESCE(SUM(nombre_questions), 0) FROM sessions_exercices WHERE eleve_id = ?) as total_exercices,
+                (SELECT COALESCE(SUM(nombre_correct), 0) FROM sessions_exercices WHERE eleve_id = ?) as total_correct,
+                (SELECT COUNT(*) FROM badges_eleves WHERE eleve_id = ?) as nb_badges,
+                (SELECT COALESCE(SUM(points_totaux), 0) FROM progression_eleves WHERE eleve_id = ?) as points_totaux
+        ');
+        $stmt->execute([$this->id, $this->id, $this->id, $this->id]);
+        $row = $stmt->fetch();
         
-        // Total correct
-        $stmt = $this->db->prepare('SELECT SUM(nombre_correct) FROM sessions_exercices WHERE eleve_id = ?');
-        $stmt->execute([$this->id]);
-        $totalCorrect = (int) $stmt->fetchColumn();
-        
-        // Taux de réussite
-        $tauxReussite = $totalExercices > 0 ? round(($totalCorrect / $totalExercices) * 100, 1) : 0;
-        
-        // Nombre de badges
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM badges_eleves WHERE eleve_id = ?');
-        $stmt->execute([$this->id]);
-        $nbBadges = (int) $stmt->fetchColumn();
-        
-        // Points totaux
-        $stmt = $this->db->prepare('SELECT SUM(points_totaux) FROM progression_eleves WHERE eleve_id = ?');
-        $stmt->execute([$this->id]);
-        $pointsTotaux = (int) $stmt->fetchColumn();
+        $totalExercices = (int)$row['total_exercices'];
+        $totalCorrect = (int)$row['total_correct'];
         
         return [
             'total_exercices' => $totalExercices,
             'total_correct' => $totalCorrect,
-            'taux_reussite' => $tauxReussite,
-            'nb_badges' => $nbBadges,
-            'points_totaux' => $pointsTotaux
+            'taux_reussite' => $totalExercices > 0 ? round(($totalCorrect / $totalExercices) * 100, 1) : 0,
+            'nb_badges' => (int)$row['nb_badges'],
+            'points_totaux' => (int)$row['points_totaux']
         ];
     }
     
